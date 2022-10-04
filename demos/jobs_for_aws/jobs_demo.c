@@ -896,9 +896,9 @@ int RunJobsDemo( bool awsIotMqttMode,
 
             /* Check if we have notification for the next pending job in the queue from the
              * NextJobExecutionChanged API of the AWS IoT Jobs service. */
-            xMqttStatus = MQTT_ProcessLoop( &xMqttContext, 300U );
+            xMqttStatus = MQTT_ProcessLoop( &xMqttContext );
 
-            if( xMqttStatus != MQTTSuccess )
+            if( xMqttStatus != MQTTSuccess && xMqttStatus != MQTTNeedMoreBytes)
             {
                 xDemoStatus = pdFAIL;
                 LogError( ( "Failed to receive notification about next pending job: "

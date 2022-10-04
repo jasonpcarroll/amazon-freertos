@@ -166,7 +166,6 @@ BaseType_t PublishToTopic( MQTTContext_t * pxContext,
  * @return pdPASS if process loop was successful;
  * pdFAIL otherwise.
  */
-BaseType_t ProcessLoop( MQTTContext_t * pxMqttContext,
-                        uint32_t ulTimeoutMs );
+BaseType_t ProcessLoop( MQTTContext_t * pxMqttContext );
 
 #endif /* ifndef MQTT_DEMO_HELPERS_H_ */

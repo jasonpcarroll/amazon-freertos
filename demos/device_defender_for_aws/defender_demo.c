@@ -604,6 +604,8 @@ int RunDeviceDefenderDemo( bool awsIotMqttMode,
     bool mqttSessionEstablished = false;
     UBaseType_t demoRunCount = 0;
     BaseType_t retryDemoLoop = pdFALSE;
+    uint32_t ulMQTTProcessLoopTimeoutTime;
+    uint32_t ulCurrentTime;
 
     ( void ) awsIotMqttMode;
     ( void ) pIdentifier;
@@ -702,18 +704,17 @@ int RunDeviceDefenderDemo( bool awsIotMqttMode,
 
         if( demoStatus == pdPASS )
         {
+            ulCurrentTime = mqttContext.getTime();
+            ulMQTTProcessLoopTimeoutTime = ulCurrentTime + DEFENDER_RESPONSE_WAIT_SECONDS * 1000;
             /* Note that PublishToTopic already called MQTT_ProcessLoop, therefore
              * responses may have been received and the publishCallback may have
              * been called. */
-            for( i = 0; i < DEFENDER_RESPONSE_WAIT_SECONDS; i++ )
+            while( ( reportStatus == ReportStatusNotReceived ) &&
+                   ( ulCurrentTime < ulMQTTProcessLoopTimeoutTime ) )
             {
-                /* reportStatus is updated in the publishCallback. */
-                if( reportStatus != ReportStatusNotReceived )
-                {
-                    break;
-                }
-
-                ( void ) ProcessLoop( &mqttContext, 1000 );
+        
+                ( void ) ProcessLoop( &mqttContext );
+                ulCurrentTime = mqttContext.getTime();
             }
         }
 
