@@ -139,7 +139,7 @@
  * @brief Maximum number of outgoing publishes maintained in the application
  * until an ack is received from the broker.
  */
-#define MAX_OUTGOING_PUBLISHES                       ( 1U )
+#define MAX_OUTGOING_PUBLISHES                       ( 10U )
 
 /**
  * @brief Milliseconds per second.
@@ -849,6 +849,7 @@ BaseType_t EstablishMqttSession( MQTTContext_t * pxMqttContext,
         xTransport.pNetworkContext = pxNetworkContext;
         xTransport.send = SecureSocketsTransport_Send;
         xTransport.recv = SecureSocketsTransport_Recv;
+        xTransport.writev = NULL;
 
         /* Initialize MQTT library. */
         eMqttStatus = MQTT_Init( pxMqttContext,
