@@ -139,7 +139,7 @@
  * @brief Maximum number of outgoing publishes maintained in the application
  * until an ack is received from the broker.
  */
-#define MAX_OUTGOING_PUBLISHES                       ( 10U )
+#define MAX_OUTGOING_PUBLISHES                       ( 1U )
 
 /**
  * @brief Milliseconds per second.
@@ -151,8 +151,8 @@
  */
 #define MILLISECONDS_PER_TICK                        ( MILLISECONDS_PER_SECOND / configTICK_RATE_HZ )
 
-#define OUTGOING_PUBLISH_RECORD_COUNT 20
-#define INCOMING_PUBLISH_RECORD_COUNT 20
+#define OUTGOING_PUBLISH_RECORD_COUNT                20
+#define INCOMING_PUBLISH_RECORD_COUNT                20
 
 static MQTTPubAckInfo_t pOutgoingPublishRecords[ OUTGOING_PUBLISH_RECORD_COUNT ];
 static MQTTPubAckInfo_t pIncomingPublishRecords[ INCOMING_PUBLISH_RECORD_COUNT ];
@@ -755,6 +755,8 @@ void vHandleOtherIncomingPacket( MQTTPacketInfo_t * pxPacketInfo,
         case MQTT_PACKET_TYPE_PUBACK:
             LogInfo( ( "PUBACK received for packet id %u.\n\n",
                        usPacketIdentifier ) );
+
+            globalPacketTypeReceived = MQTT_PACKET_TYPE_PUBACK;
             /* Cleanup publish packet when a PUBACK is received. */
             vCleanupOutgoingPublishWithPacketID( usPacketIdentifier );
             break;
@@ -1111,38 +1113,13 @@ BaseType_t PublishToTopic( MQTTContext_t * pxMqttContext,
                        pcTopicFilter,
                        outgoingPublishPackets[ ucPublishIndex ].packetId ) );
 
-            ulCurrentTime = pxMqttContext->getTime();
-            ulMQTTProcessLoopTimeoutTime = ulCurrentTime + mqttexamplePROCESS_LOOP_TIMEOUT_MS;
+            eMqttStatus = prvWaitForPacket( pxMqttContext, MQTT_PACKET_TYPE_PUBACK );
 
-            /* Calling MQTT_ProcessLoop to process incoming publish echo, since
-             * application subscribed to the same topic the broker will send
-             * publish message back to the application. This function also
-             * sends ping request to broker if MQTT_KEEP_ALIVE_INTERVAL_SECONDS
-             * has expired since the last MQTT packet sent and receive
-             * ping responses. */
-            while( 1 )
+            if( eMqttStatus == pdFAIL )
             {
-                eMqttStatus = MQTT_ProcessLoop( pxMqttContext );
-
-                ulCurrentTime = pxMqttContext->getTime();
-
-                if( ( eMqttStatus != MQTTSuccess ) && ( eMqttStatus != MQTTNeedMoreBytes ) )
-                {
-                    break;
-                }
-                else if( ulCurrentTime > ulMQTTProcessLoopTimeoutTime )
-                {
-                    break;
-                }
-                else
-                {
-                }
-            }
-
-            if( ( eMqttStatus != MQTTSuccess ) || ( eMqttStatus != MQTTNeedMoreBytes ) )
-            {
-                LogWarn( ( "MQTT_ProcessLoop returned with status = %s.",
-                           MQTT_Status_strerror( eMqttStatus ) ) );
+                LogError( ( "PUBACK never arrived for packet ID: %d.",
+                            outgoingPublishPackets[ ucPublishIndex ].packetId ) );
+                xReturnStatus = pdFAIL;
             }
         }
     }
