@@ -74,6 +74,7 @@
 /* Kernel includes. */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "queue.h"
 
 /* Jobs library header. */
 #include "jobs.h"
@@ -236,6 +237,8 @@
  */
 #define DELAY_BETWEEN_DEMO_ITERATIONS_TICKS    ( pdMS_TO_TICKS( 5000U ) )
 
+#define JOBS_MESSAGE_QUEUE_LEN                 10
+
 /*-----------------------------------------------------------*/
 
 /**
@@ -262,6 +265,8 @@ struct NetworkContext
 };
 
 /*-----------------------------------------------------------*/
+
+static QueueHandle_t xJobMessageQueue;
 
 /**
  * @brief The MQTT context used for MQTT operation.
@@ -717,8 +722,30 @@ static void prvEventCallback( MQTTContext_t * pxMqttContext,
             /* Upon successful return, the messageType has been filled in. */
             if( ( topicType == JobsDescribeSuccess ) || ( topicType == JobsNextJobChanged ) )
             {
-                /* Handler function to process payload. */
-                prvNextJobHandler( pxDeserializedInfo->pPublishInfo );
+                MQTTPublishInfo_t * pxJobMessageInfo = ( MQTTPublishInfo_t * ) malloc( sizeof( MQTTPublishInfo_t ) );
+                char * pTopicName = ( char * ) malloc( pxDeserializedInfo->pPublishInfo->topicNameLength );
+                char * pPayload = ( char * ) malloc( pxDeserializedInfo->pPublishInfo->payloadLength );
+
+                if( ( pxJobMessageInfo == NULL ) || ( pTopicName == NULL ) || ( pPayload == NULL ) )
+                {
+                    LogError( ( "Malloc failed for copying job publish info." ) );
+                }
+                else
+                {
+                    memcpy( pxJobMessageInfo, pxDeserializedInfo->pPublishInfo, sizeof( MQTTPublishInfo_t ) );
+                    memcpy( pTopicName, pxDeserializedInfo->pPublishInfo->pTopicName, pxDeserializedInfo->pPublishInfo->topicNameLength );
+                    memcpy( pPayload, pxDeserializedInfo->pPublishInfo->pPayload, pxDeserializedInfo->pPublishInfo->payloadLength );
+
+                    pxJobMessageInfo->pTopicName = pTopicName;
+                    pxJobMessageInfo->pPayload = pPayload;
+
+                    LogInfo(("pxJobMessageInfo sent: %p", pxJobMessageInfo));
+                    if( xQueueSend( xJobMessageQueue, &pxJobMessageInfo, 0 ) == errQUEUE_FULL )
+                    {
+
+                        LogError( ( "Could not enqueue message." ) );
+                    }
+                }
             }
             else if( topicType == JobsUpdateSuccess )
             {
@@ -803,6 +830,8 @@ int RunJobsDemo( bool awsIotMqttMode,
     ( void ) pNetworkServerInfo;
     ( void ) pNetworkCredentialInfo;
     ( void ) pNetworkInterface;
+
+    xJobMessageQueue = xQueueCreate( JOBS_MESSAGE_QUEUE_LEN, sizeof( MQTTPublishInfo_t * ) );
 
     /* This demo runs a single loop unless there are failures in the demo execution.
      * In case of failures in the demo execution, demo loop will be retried for up to
@@ -893,12 +922,23 @@ int RunJobsDemo( bool awsIotMqttMode,
                ( xDemoStatus == pdPASS ) )
         {
             MQTTStatus_t xMqttStatus = MQTTSuccess;
+            MQTTPublishInfo_t * pxJobMessagePublishInfo;
+
+            if( xQueueReceive( xJobMessageQueue, &pxJobMessagePublishInfo, 0 ) == pdTRUE )
+            {
+                LogInfo(("pxJobMessagePublishInfo Received: %p", pxJobMessagePublishInfo));
+                /* Handler function to process payload. */
+                prvNextJobHandler( pxJobMessagePublishInfo );
+                free(pcJobMessagePublishInfo->pTopicName);
+                free(pcJobMessagePublishInfo->pPayload);
+                free(pcJobMessagePublishInfo);
+            }
 
             /* Check if we have notification for the next pending job in the queue from the
              * NextJobExecutionChanged API of the AWS IoT Jobs service. */
             xMqttStatus = MQTT_ProcessLoop( &xMqttContext );
 
-            if( xMqttStatus != MQTTSuccess && xMqttStatus != MQTTNeedMoreBytes)
+            if( ( xMqttStatus != MQTTSuccess ) && ( xMqttStatus != MQTTNeedMoreBytes ) )
             {
                 xDemoStatus = pdFAIL;
                 LogError( ( "Failed to receive notification about next pending job: "
