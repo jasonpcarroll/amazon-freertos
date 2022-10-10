@@ -929,9 +929,9 @@ int RunJobsDemo( bool awsIotMqttMode,
                 LogInfo(("pxJobMessagePublishInfo Received: %p", pxJobMessagePublishInfo));
                 /* Handler function to process payload. */
                 prvNextJobHandler( pxJobMessagePublishInfo );
-                free(pcJobMessagePublishInfo->pTopicName);
-                free(pcJobMessagePublishInfo->pPayload);
-                free(pcJobMessagePublishInfo);
+                free(pxJobMessagePublishInfo->pTopicName);
+                free(pxJobMessagePublishInfo->pPayload);
+                free(pxJobMessagePublishInfo);
             }
 
             /* Check if we have notification for the next pending job in the queue from the
