@@ -626,7 +626,7 @@ static void prvNextJobHandler( MQTTPublishInfo_t * pxPublishInfo )
                          &pcJobId,
                          &ulJobIdLength ) != JSONSuccess )
         {
-            LogWarn( ( "Failed to parse Job ID in message received from AWS IoT Jobs service: "
+            LogWarn( ( "Failed to parse Job ID: "
                        "IncomingTopic=%.*s, Payload=%.*s",
                        pxPublishInfo->topicNameLength, pxPublishInfo->pTopicName,
                        pxPublishInfo->payloadLength, pxPublishInfo->pPayload ) );
@@ -732,14 +732,21 @@ static void prvEventCallback( MQTTContext_t * pxMqttContext,
                 }
                 else
                 {
-                    memcpy( pxJobMessageInfo, pxDeserializedInfo->pPublishInfo, sizeof( MQTTPublishInfo_t ) );
                     memcpy( pTopicName, pxDeserializedInfo->pPublishInfo->pTopicName, pxDeserializedInfo->pPublishInfo->topicNameLength );
                     memcpy( pPayload, pxDeserializedInfo->pPublishInfo->pPayload, pxDeserializedInfo->pPublishInfo->payloadLength );
 
                     pxJobMessageInfo->pTopicName = pTopicName;
                     pxJobMessageInfo->pPayload = pPayload;
+                    pxJobMessageInfo->dup = pxDeserializedInfo->pPublishInfo->dup;
+                    pxJobMessageInfo->payloadLength = pxDeserializedInfo->pPublishInfo->payloadLength;
+                    pxJobMessageInfo->qos = pxDeserializedInfo->pPublishInfo->qos;
+                    pxJobMessageInfo->retain = pxDeserializedInfo->pPublishInfo->retain;
+                    pxJobMessageInfo->topicNameLength = pxDeserializedInfo->pPublishInfo->topicNameLength;
 
                     LogInfo(("pxJobMessageInfo sent: %p", pxJobMessageInfo));
+                    LogInfo(("pTopicName sent = %.*s", pxJobMessageInfo->topicNameLength, pxJobMessageInfo->pTopicName));
+                    LogInfo(("pPayload sent = %.*s", pxJobMessageInfo->payloadLength, pxJobMessageInfo->pPayload));
+
                     if( xQueueSend( xJobMessageQueue, &pxJobMessageInfo, 0 ) == errQUEUE_FULL )
                     {
 
@@ -922,16 +929,19 @@ int RunJobsDemo( bool awsIotMqttMode,
                ( xDemoStatus == pdPASS ) )
         {
             MQTTStatus_t xMqttStatus = MQTTSuccess;
-            MQTTPublishInfo_t * pxJobMessagePublishInfo;
+            MQTTPublishInfo_t * pxJobMessageInfo;
 
-            if( xQueueReceive( xJobMessageQueue, &pxJobMessagePublishInfo, 0 ) == pdTRUE )
+            if( xQueueReceive( xJobMessageQueue, &pxJobMessageInfo, 0 ) == pdTRUE )
             {
-                LogInfo(("pxJobMessagePublishInfo Received: %p", pxJobMessagePublishInfo));
+                LogInfo(("pxJobMessageInfo received: %p", pxJobMessageInfo));
+                LogInfo(("pTopicName received = %.*s", pxJobMessageInfo->topicNameLength, pxJobMessageInfo->pTopicName));
+                LogInfo(("pPayload received = %.*s", pxJobMessageInfo->payloadLength, pxJobMessageInfo->pPayload));
+
                 /* Handler function to process payload. */
-                prvNextJobHandler( pxJobMessagePublishInfo );
-                free(pxJobMessagePublishInfo->pTopicName);
-                free(pxJobMessagePublishInfo->pPayload);
-                free(pxJobMessagePublishInfo);
+                prvNextJobHandler( pxJobMessageInfo );
+                free(pxJobMessageInfo->pTopicName);
+                free(pxJobMessageInfo->pPayload);
+                free(pxJobMessageInfo);
             }
 
             /* Check if we have notification for the next pending job in the queue from the

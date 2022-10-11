@@ -1119,6 +1119,7 @@ BaseType_t PublishToTopic( MQTTContext_t * pxMqttContext,
             {
                 LogError( ( "PUBACK never arrived for packet ID: %d.",
                             outgoingPublishPackets[ ucPublishIndex ].packetId ) );
+                vCleanupOutgoingPublishAt( ucPublishIndex );
                 xReturnStatus = pdFAIL;
             }
         }
