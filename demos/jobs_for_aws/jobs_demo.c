@@ -939,9 +939,9 @@ int RunJobsDemo( bool awsIotMqttMode,
 
                 /* Handler function to process payload. */
                 prvNextJobHandler( pxJobMessageInfo );
-                vPortfree(pxJobMessageInfo->pTopicName);
-                vPortfree(pxJobMessageInfo->pPayload);
-                vPortfree(pxJobMessageInfo);
+                vPortFree(pxJobMessageInfo->pTopicName);
+                vPortFree(pxJobMessageInfo->pPayload);
+                vPortFree(pxJobMessageInfo);
             }
 
             /* Check if we have notification for the next pending job in the queue from the
