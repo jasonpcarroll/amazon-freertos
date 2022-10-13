@@ -722,9 +722,9 @@ static void prvEventCallback( MQTTContext_t * pxMqttContext,
             /* Upon successful return, the messageType has been filled in. */
             if( ( topicType == JobsDescribeSuccess ) || ( topicType == JobsNextJobChanged ) )
             {
-                MQTTPublishInfo_t * pxJobMessageInfo = ( MQTTPublishInfo_t * ) malloc( sizeof( MQTTPublishInfo_t ) );
-                char * pTopicName = ( char * ) malloc( pxDeserializedInfo->pPublishInfo->topicNameLength );
-                char * pPayload = ( char * ) malloc( pxDeserializedInfo->pPublishInfo->payloadLength );
+                MQTTPublishInfo_t * pxJobMessageInfo = ( MQTTPublishInfo_t * ) pvPortMalloc( sizeof( MQTTPublishInfo_t ) );
+                char * pTopicName = ( char * ) pvPortMalloc( pxDeserializedInfo->pPublishInfo->topicNameLength );
+                char * pPayload = ( char * ) pvPortMalloc( pxDeserializedInfo->pPublishInfo->payloadLength );
 
                 if( ( pxJobMessageInfo == NULL ) || ( pTopicName == NULL ) || ( pPayload == NULL ) )
                 {
@@ -939,9 +939,9 @@ int RunJobsDemo( bool awsIotMqttMode,
 
                 /* Handler function to process payload. */
                 prvNextJobHandler( pxJobMessageInfo );
-                free(pxJobMessageInfo->pTopicName);
-                free(pxJobMessageInfo->pPayload);
-                free(pxJobMessageInfo);
+                vPortfree(pxJobMessageInfo->pTopicName);
+                vPortfree(pxJobMessageInfo->pPayload);
+                vPortfree(pxJobMessageInfo);
             }
 
             /* Check if we have notification for the next pending job in the queue from the
